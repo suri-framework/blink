@@ -24,6 +24,8 @@
    (http (>= "6.0.0"))
    (httpaf (>= "0.7.1"))
    (faraday (>= "0.8.2"))
-   (angstrom (>= "0.15.0")))
+   (angstrom (>= "0.15.0"))
+   (mdx (and :with-test (>= "2.3.1")))
+   (odoc (and :with-doc (>= "2.2.2"))))
  (tags
   (http client "http client" riot multicore)))
