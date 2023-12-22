@@ -14,7 +14,7 @@ First we create a connection, which we can reuse:
 
 <!-- $MDX file=./test/get_ocaml_org_test.ml,part=conn -->
 ```ocaml
-  let url = (Uri.of_string "http://ocaml.org") in
+  let url = Uri.of_string "http://ocaml.org" in
   let conn = Blink.connect url |> Result.get_ok in
 ```
 
