@@ -15,7 +15,7 @@ let () =
   let conn, _req_ref = Blink.request conn req () |> Result.get_ok in
   (* $MDX part-end *)
   (* $MDX part-begin=stream *)
-  let [ `Status status; `Headers headers; `Data body; `Done ] =
+  let _conn, [ `Status status; `Headers headers; `Data body; `Done ] =
     Blink.stream conn |> Result.get_ok
   in
   (* $MDX part-end *)

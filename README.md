@@ -30,7 +30,7 @@ Finally, once we have made a request, we can call `Blink.stream` to stream-parse
 
 <!-- $MDX file=./test/get_ocaml_org_test.ml,part=stream -->
 ```ocaml
-  let [ `Status status; `Headers headers; `Data body; `Done ] =
+  let _conn, [ `Status status; `Headers headers; `Data body; `Done ] =
     Blink.stream conn |> Result.get_ok
   in
 ```

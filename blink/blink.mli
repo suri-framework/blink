@@ -34,4 +34,4 @@ type response =
   | `Data of Bigstringaf.t
   | `Done ]
 
-val stream : conn -> (response list, [> `Response_parsing_error ]) result
+val stream : conn -> (conn * response list, [> `Response_parsing_error ]) result

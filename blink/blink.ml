@@ -79,9 +79,10 @@ let stream conn =
   in
   let* body, res = read state in
   Ok
-    [
-      `Status (res.status |> Httpaf.Status.to_code |> Http.Status.of_int);
-      `Headers (res.headers |> Httpaf.Headers.to_list |> Http.Header.of_list);
-      `Data body;
-      `Done;
-    ]
+    ( conn,
+      [
+        `Status (res.status |> Httpaf.Status.to_code |> Http.Status.of_int);
+        `Headers (res.headers |> Httpaf.Headers.to_list |> Http.Header.of_list);
+        `Data body;
+        `Done;
+      ] )
