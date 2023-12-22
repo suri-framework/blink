@@ -1,0 +1,29 @@
+(lang dune 3.11)
+(using mdx 0.4)
+
+(name blink)
+
+(generate_opam_files true)
+
+(source
+ (github leostera/blink))
+
+(authors "Leandro Ostera <leandro@abstractmachines.dev>")
+
+(maintainers "Leandro Ostera <leandro@abstractmachines.dev>")
+
+(license MIT)
+
+(package
+ (name blink)
+ (synopsis "A short synopsis")
+ (description "A longer description")
+ (depends 
+   (ocaml (>="5.1"))
+   (riot (>= "0.0.6"))
+   (http (>= "6.0.0"))
+   (httpaf (>= "0.7.1"))
+   (faraday (>= "0.8.2"))
+   (angstrom (>= "0.15.0")))
+ (tags
+  (http client "http client" riot multicore)))
