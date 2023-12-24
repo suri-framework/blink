@@ -1,3 +1,4 @@
-(tests
- (names get_ocaml_org_test)
+(test
+ (name get_ocaml_org_test)
+ (deps ca-root-nss-short.crt)
  (libraries blink))

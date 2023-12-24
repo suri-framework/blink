@@ -14,8 +14,20 @@ First we create a connection, which we can reuse:
 
 <!-- $MDX file=./test/get_ocaml_org_test.ml,part=conn -->
 ```ocaml
-  let url = Uri.of_string "http://ocaml.org" in
-  let conn = Blink.connect url |> Result.get_ok in
+  let url = Uri.of_string "https://abstractmachines.dev" in
+  let conn =
+    match Blink.connect url with
+    | Ok conn -> conn
+    | Error err ->
+        (match err with
+        | `Closed -> Logger.error (fun f -> f "closed")
+        | `Invalid_uri uri -> Logger.error (fun f -> f "invalid_uri %a" Uri.pp uri)
+        | `Tls_error exn -> Logger.error (fun f -> f "tls_error %s" (Printexc.to_string exn))
+        | `Timeout -> Logger.error (fun f -> f "timeout")
+        | `Unix_error err -> Logger.error (fun f -> f "unix_error: %s" (Unix.error_message err)));
+        sleep 0.1;
+        Stdlib.exit 1
+  in
 ```
 
 This figures out the protocol that we will use, and returns a `conn` value that we make requests with:
@@ -30,9 +42,21 @@ Finally, once we have made a request, we can call `Blink.stream` to stream-parse
 
 <!-- $MDX file=./test/get_ocaml_org_test.ml,part=stream -->
 ```ocaml
-  let _conn, [ `Status status; `Headers headers; `Data body; `Done ] =
-    Blink.stream conn |> Result.get_ok
+  let _conn, parts =
+    match Blink.stream conn with Ok x -> x | Error err -> 
+        (match err with
+        | `Closed -> Logger.error (fun f -> f "closed")
+        | `Response_parsing_error -> Logger.error (fun f -> f "response_parsing_error")
+        | `Invalid_uri uri -> Logger.error (fun f -> f "invalid_uri %a" Uri.pp uri)
+        | `Tls_error exn -> Logger.error (fun f -> f "tls_error %s" (Printexc.to_string exn))
+        | `Timeout -> Logger.error (fun f -> f "timeout")
+        | `Unix_error err -> Logger.error (fun f -> f "unix_error: %s" (Unix.error_message err)));
+        sleep 0.1;
+        Stdlib.exit 1
+
   in
+
+  let[@warning "-8"] [ `Status status; `Headers headers; `Data body; `Done ] =  parts in
 ```
 
 When you receive a `` `Done `` message you'd have reached the end of the stream.
