@@ -6,6 +6,8 @@
   http
   httpaf
   uri
+  castore
+  cohttp
   faraday
   angstrom
   tls

@@ -1,54 +1,43 @@
-(**
-   {1 Blink}
-
-   {@ocaml[
-    let* conn = Blink.connect (Uri.parse "http://google.com") in
-    let* conn, req_ref = 
-      let req = Http.Request.make "/" in
-      Blink.request ~conn ~req
-    in
-    let* parts = Blink.stream ~conn in
-    ]}
+(** {1 Blink}
 
 *)
 
 open Riot
 
-type conn
+(** {2 Connection}
+
+*)
+module Connection : sig
+  type t
+
+  type message =
+    [ `Data of IO.Buffer.t
+    | `Done
+    | `Headers of Http.Header.t
+    | `Status of Http.Status.t ]
+end
+
+val ( let* ) : ('a, 'b) result -> ('a -> ('c, 'b) result) -> ('c, 'b) result
 
 val connect :
-  ?auth:Tls.Config.client ->
   Uri.t ->
-  ( conn,
+  ( Connection.t,
     [> `Closed
     | `Invalid_uri of Uri.t
-    | `Timeout
     | `Tls_error of exn
     | `Unix_error of Unix.error ] )
-  IO.result
-
-type request_ref
+  result
 
 val request :
-  conn ->
+  Connection.t ->
   Http.Request.t ->
   ?body:IO.Buffer.t ->
   unit ->
-  (conn * request_ref, [> `Request_error | `Closed ]) IO.result
-
-type response =
-  [ `Status of Http.Status.t
-  | `Headers of Http.Header.t
-  | `Data of IO.Buffer.t
-  | `Done ]
+  (Connection.t, [> `Closed | `Unix_error of Unix.error ]) result
 
 val stream :
-  conn ->
-  ( conn * response list,
-    [> `Response_parsing_error | `Closed | `Eof ] )
-  IO.result
-
-module Auth : sig
-  val default : unit -> Tls.Config.client
-  val null : unit -> Tls.Config.client
-end
+  Connection.t ->
+  ( Connection.t * Connection.message list,
+    [> `Closed | `Eof | `Response_parsing_error | `Unix_error of Unix.error ]
+  )
+  result

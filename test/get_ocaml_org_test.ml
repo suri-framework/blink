@@ -25,7 +25,7 @@ let () =
   (* $MDX part-end *)
   (* $MDX part-begin=request *)
   let req = Http.Request.make "/" in
-  let conn, _req_ref = Blink.request conn req () |> Result.get_ok in
+  let conn = Blink.request conn req () |> Result.get_ok in
   (* $MDX part-end *)
   (* $MDX part-begin=stream *)
   let _conn, parts =
