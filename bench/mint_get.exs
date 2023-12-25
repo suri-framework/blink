@@ -11,12 +11,7 @@ defmodule DoThing do
     scheme = uri.scheme |> String.to_atom()
     {:ok, conn} = Mint.HTTP.connect(scheme, uri.host, uri.port)
     {:ok, conn, _request_ref} = Mint.HTTP.request(conn, "GET", "/", [], "")
-
     stream(conn, [])
-    |> :lists.flatten()
-    |> Enum.reverse()
-    |> IO.inspect()
-    |> IO.iodata_to_binary()
   end
 
   def stream(_conn, {:done, acc}), do: acc
@@ -25,18 +20,18 @@ defmodule DoThing do
     receive do
       message ->
         {:ok, conn, responses} = Mint.HTTP.stream(conn, message)
-        stream(conn, h(responses, acc))
+        stream(conn, h(responses, acc)) |> IO.iodata_to_binary()
     end
   end
 
   def h([], acc), do: acc
+  def h([{:status, _, code} | xs], []), do: h(xs, [Integer.to_string(code)])
+  def h([{:headers, _, headers} | xs], acc), do: h(xs, [acc, ?\n, hs(headers)])
+  def h([{:data, _, body} | xs], acc), do: h(xs, [acc, body])
   def h([{:done, _} | _xs], acc), do: {:done, acc}
-  def h([{:status, _, code} | xs], acc), do: h(xs, [code | acc])
-  def h([{:headers, _, headers} | xs], acc), do: h(xs, [hs(headers) | acc])
-  def h([{:data, _, body} | xs], acc), do: h(xs, [body | acc])
 
   def hs(headers) do
-    headers |> Enum.map(fn {h, v} -> "#{h}: #{v}" end) |> Enum.join("\n")
+    Enum.map(headers, fn {h, v} -> [h, ": ", v, ?\n] end)
   end
 end
 
