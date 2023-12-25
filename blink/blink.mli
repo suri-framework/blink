@@ -25,7 +25,8 @@ val connect :
     [> `Closed
     | `Invalid_uri of Uri.t
     | `Tls_error of exn
-    | `Unix_error of Unix.error ] )
+    | `Unix_error of Unix.error
+    | `Msg of string ] )
   result
 
 val request :

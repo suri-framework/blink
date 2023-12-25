@@ -5,7 +5,10 @@ module type Intf = sig
     Net.Addr.stream_addr ->
     Uri.t ->
     ( Connection.t,
-      [> `Closed | `Unix_error of Unix.error | `Tls_error of exn ] )
+      [> `Closed
+      | `Unix_error of Unix.error
+      | `Tls_error of exn
+      | `Msg of string ] )
     result
 end
 

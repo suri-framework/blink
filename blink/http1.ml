@@ -23,6 +23,8 @@ module Request = struct
       headers |> Http.Header.to_list |> Httpaf.Headers.of_list
       |> add_header "content-length" content_length
       |> add_header "host" (Uri.host uri)
+      |> add_header "user-agent" (Some "OCaml/Blink")
+      |> add_header "connection" (Some "close")
     in
     let meth = meth |> Http.Method.to_string |> Httpaf.Method.of_string in
     let req = Httpaf.Request.create ~version ~headers meth resource in
@@ -35,6 +37,7 @@ module Request = struct
         Faraday.write_bigstring buf ~off:0 ~len:(IO.Buffer.length body) ba)
       body;
     let ba = Faraday.serialize_to_bigstring buf in
+    Logger.trace (fun f -> f "Request: %S" (Bigstringaf.to_string ba));
     let len = Bigstringaf.length ba in
     let cs = Cstruct.of_bigarray ~off:0 ~len ba in
     IO.Buffer.of_cstruct ~filled:len cs
@@ -42,7 +45,7 @@ end
 
 module Response = struct
   let of_reader reader ~buf =
-    Logger.error (fun f -> f " Http1.Response.of_reader");
+    Logger.trace (fun f -> f " Http1.Response.of_reader");
     let state = Angstrom.Buffered.parse Httpaf.Httpaf_private.Parse.response in
     let rec read state =
       match state with
@@ -64,21 +67,19 @@ module Response = struct
             |> Httpaf.Headers.get Httpaf.Response.(res.headers)
             |> Option.map int_of_string
           in
-          let need_to_read =
+          let _need_to_read =
             content_length
             |> Option.map (fun cl -> cl - IO.Buffer.length prefix)
             |> Option.value ~default:(1024 * 10)
           in
-          let buf = IO.Buffer.with_capacity need_to_read in
-          let copied = IO.Buffer.copy ~src:prefix ~dst:buf in
-          Logger.debug (fun f -> f "copied %d bytes" copied);
-          let str = ref "" in
+          let str = ref (IO.Buffer.to_string prefix) in
           let rec read_body () =
             let* len = IO.Reader.read ~buf reader in
             let data = IO.Buffer.to_string buf in
             str := !str ^ data;
             Logger.debug (fun f -> f "read %d bytes: %S" len data);
-            if String.ends_with ~suffix:"\n\n\r\n0\r\n\r\n" data then Ok ()
+            if len = 0 || String.ends_with ~suffix:"\n\n\r\n0\r\n\r\n" data then
+              Ok ()
             else read_body ()
           in
           let* () = read_body () in
