@@ -20,7 +20,7 @@
  (description "A longer description")
  (depends 
    (ocaml (>="5.1"))
-   (riot (>= "0.0.6"))
+   (riot (>= "0.0.7"))
    (http (>= "6.0.0~alpha2"))
    (castore (>= "0.0.1"))
    (cohttp (>= "5.3.1"))
