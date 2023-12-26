@@ -1,12 +1,15 @@
 (**
   The majority of this module has been taken verbatim (and in some places refactored to work with Riot)
-  from `ocaml-tls` and its `eio` subpackage.
-  
-  Namely:
+  from `ocaml-tls` and its `eio` subpackage, namely:
   * https://github.com/mirleft/ocaml-tls/blob/main/eio/tls_eio.ml
   * https://github.com/mirleft/ocaml-tls/blob/main/eio/x509_eio.ml
 
-  See their license: https://github.com/mirleft/ocaml-tls/blob/main/LICENSE.md
+  And from `ca-certs`:
+  * https://github.com/mirage/ca-certs/blob/main/lib/ca_certs.ml
+
+  See their licenses:
+  * https://github.com/mirleft/ocaml-tls/blob/main/LICENSE.md
+  * https://github.com/mirage/ca-certs/blob/main/LICENSE.md
 *)
 
 open Riot
