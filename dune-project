@@ -22,7 +22,7 @@
    (ocaml (>="5.1"))
    (riot (>= "0.0.7"))
    (http (>= "6.0.0~alpha2"))
-   (castore (>= "0.0.1"))
+   (castore (>= "0.0.2"))
    (cohttp (>= "5.3.1"))
    (faraday (>= "0.8.2"))
    (angstrom (>= "0.15.0"))

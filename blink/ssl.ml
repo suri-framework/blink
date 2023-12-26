@@ -1,204 +1,55 @@
 (******************************************************************************************
 
-  The Tls_unix below was ported from  `ocaml-tls`, its `eio` subpackage, specifically from:
-    * https://github.com/mirleft/ocaml-tls/blob/main/eio/tls_eio.ml
-    * https://github.com/mirleft/ocaml-tls/blob/main/eio/x509_eio.ml
+    The Tls_unix below was ported from  `ocaml-tls`, its `eio` subpackage, specifically from:
+      * https://github.com/mirleft/ocaml-tls/blob/main/eio/tls_eio.ml
+      * https://github.com/mirleft/ocaml-tls/blob/main/eio/x509_eio.ml
 
-  under this license:
+    under this license:
 
-    Copyright (c) 2014, David Kaloper and Hannes Mehnert
-    All rights reserved.
-    
-    Redistribution and use in source and binary forms, with or without modification,
-    are permitted provided that the following conditions are met:
-    
-    * Redistributions of source code must retain the above copyright notice, this
-      list of conditions and the following disclaimer.
-    
-    * Redistributions in binary form must reproduce the above copyright notice, this
-      list of conditions and the following disclaimer in the documentation and/or
-      other materials provided with the distribution.
-    
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+      Copyright (c) 2014, David Kaloper and Hannes Mehnert
+      All rights reserved.
 
-******************************************************************************************
+      Redistribution and use in source and binary forms, with or without modification,
+      are permitted provided that the following conditions are met:
 
-  The X509 and Auth modules below were ported from `ca-certs`, specifically from:
-    * https://github.com/mirage/ca-certs/blob/main/lib/ca_certs.ml
-  
-  under this license:
-  
-    Copyright (c) 2014, David Kaloper and Hannes Mehnert
-    All rights reserved.
-    
-    Redistribution and use in source and binary forms, with or without modification,
-    are permitted provided that the following conditions are met:
-    
-    * Redistributions of source code must retain the above copyright notice, this
-      list of conditions and the following disclaimer.
-    
-    * Redistributions in binary form must reproduce the above copyright notice, this
-      list of conditions and the following disclaimer in the documentation and/or
-      other materials provided with the distribution.
-    
-    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-    DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-    ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-    ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+      * Redistributions of source code must retain the above copyright notice, this
+        list of conditions and the following disclaimer.
 
-*******************************************************************************************)
+      * Redistributions in binary form must reproduce the above copyright notice, this
+        list of conditions and the following disclaimer in the documentation and/or
+        other materials provided with the distribution.
+
+      THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+      ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+      WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+      DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+      ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+      (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+      LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+      ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+      (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+      SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  *******************************************************************************************)
 
 open Riot
 
 let ( let* ) = Result.bind
 
-module X509 = struct
-  include X509
-
-  let read_file path =
-    let ic = open_in path in
-    let data = In_channel.input_all ic in
-    Cstruct.of_string data
-
-  let extension str =
-    let n = String.length str in
-    let rec scan = function
-      | i when i = 0 -> None
-      | i when str.[i - 1] = '.' -> Some (String.sub str i (n - i))
-      | i -> scan (pred i)
-    in
-    scan n
-
-  let certs_of_cstruct pem =
-    match X509.Certificate.decode_pem_multiple pem with
-    | Ok cs -> cs
-    | Error (`Msg m) -> invalid_arg ("failed to parse certificates " ^ m)
-
-  let certs_of_string str =
-    let cs = Cstruct.of_string ~off:0 ~len:(String.length str) str in
-    certs_of_cstruct cs
-
-  let certs_of_pem path =
-    try
-      let pem = read_file path in
-      certs_of_cstruct pem
-    with Invalid_argument m -> Fmt.failwith "Certificates in %s: %s" path m
-
-  let read_dir path =
-    let cwd = Sys.getcwd () in
-    Sys.readdir (Filename.concat cwd path) |> Array.to_list
-
-  let certs_of_pem_dir path =
-    read_dir path
-    |> List.filter (fun file -> extension file = Some "crt")
-    |> List.map (fun file -> certs_of_pem (Filename.concat path file))
-    |> List.flatten
-
-  let crl_of_pem path =
-    try
-      let data = read_file path in
-      match X509.CRL.decode_der data with
-      | Ok cs -> cs
-      | Error (`Msg m) -> invalid_arg ("failed to parse CRL " ^ m)
-    with Invalid_argument m -> Fmt.failwith "CRL in %s: %s" path m
-
-  let crls_of_pem_dir path =
-    read_dir path
-    |> List.map (fun file -> crl_of_pem (Filename.concat path file))
-
-  (* Would be better to take an Eio.Time.clock here, but that API is likely to change soon. *)
-  let authenticator ?allowed_hashes ?crls param =
-    let time () = Some (Ptime_clock.now ()) in
-    let of_cas cas =
-      let crls = Option.map crls_of_pem_dir crls in
-      X509.Authenticator.chain_of_trust ?allowed_hashes ?crls ~time cas
-    and dotted_hex_to_cs hex =
-      Cstruct.of_hex (String.map (function ':' -> ' ' | x -> x) hex)
-    and fingerp hash fingerprint =
-      X509.Authenticator.server_key_fingerprint ~time ~hash ~fingerprint
-    and cert_fingerp hash fingerprint =
-      X509.Authenticator.server_cert_fingerprint ~time ~hash ~fingerprint
-    in
-    match param with
-    | `Ca_contents cs -> certs_of_string cs |> of_cas
-    | `Ca_file path -> certs_of_pem path |> of_cas
-    | `Ca_dir path -> certs_of_pem_dir path |> of_cas
-    | `Key_fingerprint (hash, fp) -> fingerp hash fp
-    | `Hex_key_fingerprint (hash, fp) ->
-        let fp = dotted_hex_to_cs fp in
-        fingerp hash fp
-    | `Cert_fingerprint (hash, fp) -> cert_fingerp hash fp
-    | `Hex_cert_fingerprint (hash, fp) ->
-        let fp = dotted_hex_to_cs fp in
-        cert_fingerp hash fp
-end
-
 module Auth = struct
   let () = Mirage_crypto_rng_unix.initialize (module Mirage_crypto_rng.Fortuna)
-
-  let make_auth data =
-    let time () = Some (Ptime_clock.now ()) in
-    let d = "-----" in
-    let new_cert = d ^ "BEGIN CERTIFICATE" ^ d
-    and end_of_cert = d ^ "END CERTIFICATE" ^ d in
-    let len_new = String.length new_cert
-    and len_end = String.length end_of_cert in
-    let lines = String.split_on_char '\n' data in
-    let it, cas =
-      List.fold_left
-        (fun (acc, cas) line ->
-          match acc with
-          | None
-            when String.length line >= len_new
-                 && String.(equal (sub line 0 len_new) new_cert) ->
-              (Some [ line ], cas)
-          | None ->
-              Logger.debug (fun m -> m "ignoring line %s" line);
-              (None, cas)
-          | Some lines
-            when String.length line >= len_end
-                 && String.(equal (sub line 0 len_end) end_of_cert) -> (
-              let data = String.concat "\n" (List.rev (line :: lines)) in
-              match X509.Certificate.decode_pem (Cstruct.of_string data) with
-              | Ok ca -> (None, ca :: cas)
-              | Error (`Msg msg) ->
-                  Logger.warn (fun m ->
-                      m "Failed to decode a trust anchor %s." msg);
-                  Logger.debug (fun m -> m "Full certificate:@.%s" data);
-                  (None, cas))
-          | Some lines -> (Some (line :: lines), cas))
-        (None, []) lines
-    in
-    (match it with
-    | None -> ()
-    | Some lines ->
-        Logger.debug (fun m ->
-            m "ignoring leftover data: %s" (String.concat "\n" (List.rev lines))));
-    let cas = List.rev cas in
-    match cas with
-    | [] ->
-        Logger.error (fun f -> f "ca-certs: empty trust anchors.");
-        sleep 0.1;
-        Stdlib.exit 1
-    | _ -> X509.Authenticator.chain_of_trust ~time cas
-
   let make_default authenticator = Tls.Config.client ~authenticator ()
-  let default () = make_default (make_auth Ca_store.pem)
+
+  let default () =
+    let time () = Some (Ptime_clock.now ()) in
+    let decode_pem ca =
+      let ca = Cstruct.of_string ca in
+      let cert = X509.Certificate.decode_pem ca in
+      Result.get_ok cert
+    in
+    let cas = List.map decode_pem Ca_store.cas in
+    let authenticator = X509.Authenticator.chain_of_trust ~time cas in
+    make_default authenticator
+
   let null () = make_default (fun ?ip:_ ~host:_ _ -> Ok None)
 end
 
