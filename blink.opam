@@ -9,19 +9,18 @@ tags: ["http" "client" "http client" "riot" "multicore"]
 homepage: "https://github.com/leostera/blink"
 bug-reports: "https://github.com/leostera/blink/issues"
 depends: [
-  "dune" {>= "3.11"}
-  "ocaml" {>= "5.1"}
-  "riot" {>= "0.0.7"}
-  "http" {>= "6.0.0~alpha2"}
+  "angstrom" {>= "0.15.0"}
   "castore" {>= "0.0.2"}
   "cohttp" {>= "5.3.1"}
   "faraday" {>= "0.8.2"}
-  "angstrom" {>= "0.15.0"}
-  "tls" {>= "0.17.3"}
-  "x509" {>= "0.16.5"}
-  "mirage-crypto-rng" {>= "0.11.2"}
+  "http" {>= "6.0.0~alpha2"}
   "mdx" {with-test & >= "2.3.1"}
+  "mirage-crypto-rng" {>= "0.11.2"}
+  "ocaml" {>= "5.1"}
   "odoc" {with-doc & >= "2.2.2"}
+  "riot" {>= "0.0.7"}
+  "x509" {>= "0.16.5"}
+  "dune" {>= "3.11"}
 ]
 build: [
   ["dune" "subst"] {dev}
