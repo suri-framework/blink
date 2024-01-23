@@ -23,8 +23,8 @@ let* _conn, [ `Status status; `Headers headers; `Data body; `Done ] =
   Blink.stream conn
 in
 (* $MDX part-end *)
-match (status, Http.Header.to_list headers, IO.Buffer.length body) with
-| `OK, _, 59825 ->
+match (status, Http.Header.to_list headers, Bytestring.length body) with
+| `OK, _, 58406 ->
     Logger.info (fun f -> f "get_ocaml_org_test: OK");
     sleep 0.1;
     Ok (shutdown ())
@@ -33,6 +33,7 @@ match (status, Http.Header.to_list headers, IO.Buffer.length body) with
         f "> Got response:\n%s\n%s\n%d\n%!"
           (Http.Status.to_string status)
           (Http.Header.to_lines headers |> String.concat "")
-          (IO.Buffer.length body));
+          (Bytestring.length body));
+    (* Logger.error (fun f -> f "%a" Bytestring.pp body); *)
     sleep 0.1;
     Stdlib.exit 1

@@ -11,14 +11,13 @@ module type Intf = sig
       | `Unix_error of Unix.error
       | `Tls_error of exn
       | `Msg of string ] )
-    result
+    IO.io_result
 end
 
 module Tcp : Intf = struct
   let connect addr uri =
-    let* sock = Net.Socket.connect addr in
-    let writer = Net.Socket.to_writer sock in
-    let reader = Net.Socket.to_reader sock in
+    let* sock = Net.Tcp_stream.connect addr in
+    let reader, writer = Net.Tcp_stream.(to_reader sock, to_writer sock) in
     let conn = Connection.make ~reader ~writer ~addr ~uri in
     Ok conn
 end
@@ -47,14 +46,15 @@ module Ssl : Intf = struct
   end
 
   let connect addr uri =
-    let auth = Auth.default () in
-    let* sock = Net.Socket.connect addr in
+    let config = Auth.default () in
+    let* sock = Net.Tcp_stream.connect addr in
     let* host =
       let host = Uri.host_with_default ~default:"0.0.0.0" uri in
       let* domain_name = Domain_name.of_string host in
       Domain_name.host domain_name
     in
-    let reader, writer = SSL.of_socket ~host ~auth sock in
+    let tls_sock = SSL.of_client_socket ~host ~config sock in
+    let reader, writer = SSL.(to_reader tls_sock, to_writer tls_sock) in
     let conn = Connection.make ~reader ~writer ~addr ~uri in
     Ok conn
 end
@@ -62,6 +62,6 @@ end
 module Negotiator = struct
   let of_uri uri =
     match Uri.scheme uri |> Option.map String.lowercase_ascii with
-    | Some "https" -> (module Ssl : Intf)
-    | Some "http" | _ -> (module Tcp : Intf)
+    | Some ("https" | "wss") -> (module Ssl : Intf)
+    | Some ("http" | "ws") | _ -> (module Tcp : Intf)
 end

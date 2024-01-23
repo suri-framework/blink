@@ -17,7 +17,7 @@ let main () =
   Format.printf "%s\n%s\n%s\n%!"
     (Http.Status.to_string status)
     (Http.Header.to_lines headers |> String.concat "")
-    (IO.Buffer.to_string body);
+    (Bytestring.to_string body);
   Ok (shutdown ())
 
 let () = Riot.run @@ fun () -> main () |> Result.get_ok

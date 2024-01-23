@@ -3,17 +3,16 @@ open Riot
 module type Intf = sig
   module Request : sig
     val to_buffer :
-      Uri.t -> Http.Request.t -> ?body:IO.Buffer.t -> unit -> IO.Buffer.t
+      Uri.t -> Http.Request.t -> ?body:Bytestring.t -> unit -> Bytestring.t
   end
 
   module Response : sig
     val of_reader :
       'src IO.Reader.t ->
-      buf:IO.Buffer.t ->
       ( Msg.message list,
         [> `Closed | `Eof | `Response_parsing_error | `Unix_error of Unix.error ]
       )
-      result
+      IO.io_result
   end
 end
 

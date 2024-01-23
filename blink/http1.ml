@@ -16,7 +16,7 @@ module Request = struct
     in
 
     let content_length =
-      Option.map (fun b -> IO.Buffer.length b |> Int.to_string) body
+      Option.map (fun b -> Bytestring.length b |> Int.to_string) body
     in
 
     let headers =
@@ -31,65 +31,64 @@ module Request = struct
     let buf = Faraday.create (1024 * 1024) in
     Httpaf.Httpaf_private.Serialize.write_request buf req;
     Option.iter
-      (fun body ->
-        let cs = IO.Buffer.as_cstruct body in
-        let ba = Cstruct.to_bigarray cs in
-        Faraday.write_bigstring buf ~off:0 ~len:(IO.Buffer.length body) ba)
+      (fun body -> Faraday.write_string buf (Bytestring.to_string body))
       body;
-    let ba = Faraday.serialize_to_bigstring buf in
-    Logger.trace (fun f -> f "Request: %S" (Bigstringaf.to_string ba));
-    let len = Bigstringaf.length ba in
-    let cs = Cstruct.of_bigarray ~off:0 ~len ba in
-    IO.Buffer.of_cstruct ~filled:len cs
+    let s = Faraday.serialize_to_string buf in
+    Logger.trace (fun f -> f "Request: %S" s);
+    Bytestring.of_string s
 end
 
 module Response = struct
-  let of_reader reader ~buf =
+  let of_reader reader =
     Logger.trace (fun f -> f " Http1.Response.of_reader");
     let state = Angstrom.Buffered.parse Httpaf.Httpaf_private.Parse.response in
     let rec read state =
       match state with
       | Angstrom.Buffered.Partial continue ->
-          let* _len = IO.Reader.read ~buf reader in
-          let cs = IO.Buffer.as_cstruct buf in
-          let data = Cstruct.to_bigarray cs in
-          let state = continue (`Bigstring data) in
+          let* data = Bytestring.with_bytes (fun buf -> IO.read ~buf reader) in
+          let state = continue (`String (Bytestring.to_string data)) in
           read state
       | Angstrom.Buffered.Done (prefix, res) ->
-          let prefix =
-            let cs =
-              Cstruct.of_bigarray ~off:prefix.off ~len:prefix.len prefix.buf
-            in
-            IO.Buffer.of_cstruct ~filled:(Cstruct.length cs) cs
-          in
           let content_length =
             "content-length"
             |> Httpaf.Headers.get Httpaf.Response.(res.headers)
             |> Option.map int_of_string
           in
+
+          let prefix =
+            let cs =
+              Cstruct.of_bigarray ~off:prefix.off ~len:prefix.len prefix.buf
+            in
+            Bytestring.of_string (Cstruct.to_string cs)
+          in
           let _need_to_read =
             content_length
-            |> Option.map (fun cl -> cl - IO.Buffer.length prefix)
+            |> Option.map (fun cl -> cl - Bytestring.length prefix)
             |> Option.value ~default:(1024 * 10)
           in
-          let str = ref (IO.Buffer.to_string prefix) in
+
+          let str = ref prefix in
           let rec read_body () =
-            let* len = IO.Reader.read ~buf reader in
-            let data = IO.Buffer.to_string buf in
-            str := !str ^ data;
-            Logger.debug (fun f -> f "read %d bytes: %S" len data);
-            if len = 0 || String.ends_with ~suffix:"\n\n\r\n0\r\n\r\n" data then
-              Ok ()
+            let* data =
+              Bytestring.with_bytes (fun buf -> IO.read ~buf reader)
+            in
+            (str := Bytestring.(!str ^ data));
+            Logger.debug (fun f ->
+                f "read bytes: %S" (Bytestring.to_string data));
+            if
+              Bytestring.length data = 0
+              || String.ends_with ~suffix:"\n\n\r\n0\r\n\r\n"
+                   (Bytestring.to_string data)
+            then Ok ()
             else read_body ()
           in
           let* () = read_body () in
-          let buf = IO.Buffer.of_string !str in
           let parts =
             [
               `Status (res.status |> Httpaf.Status.to_code |> Http.Status.of_int);
               `Headers
                 (res.headers |> Httpaf.Headers.to_list |> Http.Header.of_list);
-              `Data buf;
+              `Data !str;
               `Done;
             ]
           in

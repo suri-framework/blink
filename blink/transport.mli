@@ -9,7 +9,7 @@ module type Intf = sig
       | `Unix_error of Unix.error
       | `Tls_error of exn
       | `Msg of string ] )
-    result
+    IO.io_result
 end
 
 module Tcp : Intf
