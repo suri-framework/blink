@@ -9,6 +9,7 @@ tags: ["http" "client" "http client" "riot" "multicore"]
 homepage: "https://github.com/leostera/blink"
 bug-reports: "https://github.com/leostera/blink/issues"
 depends: [
+  "trail" {>= "0.0.1"}
   "angstrom" {>= "0.15.0"}
   "castore" {>= "0.0.2"}
   "httpaf" {>= "5.3.1"}

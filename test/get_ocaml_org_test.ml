@@ -19,12 +19,12 @@ let req = Http.Request.make "/" in
 let* conn = Blink.request conn req () in
 (* $MDX part-end *)
 (* $MDX part-begin=stream *)
-let* _conn, [ `Status status; `Headers headers; `Data body; `Done ] =
-  Blink.stream conn
-in
+let* conn, [ `Status status; `Headers headers ] = Blink.stream conn in
+let* conn, [ `Data body ] = Blink.stream conn in
+let* _conn, [ `Done ] = Blink.stream conn in
 (* $MDX part-end *)
 match (status, Http.Header.to_list headers, Bytestring.length body) with
-| `OK, _, 58406 ->
+| `OK, _, 32768 ->
     Logger.info (fun f -> f "get_ocaml_org_test: OK");
     sleep 0.1;
     Ok (shutdown ())

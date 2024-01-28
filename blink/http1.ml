@@ -1,5 +1,9 @@
 open Riot
 
+open Logger.Make (struct
+  let namespace = [ "blink"; "http1" ]
+end)
+
 let ( let* ) = Result.bind
 
 module Request = struct
@@ -39,7 +43,127 @@ module Request = struct
 end
 
 module Response = struct
-  let of_reader reader =
+  let rec split ?(left = {%b||}) str =
+    match%b str with
+    | {| "\r\n"::bytes, rest::bytes |} -> [ left; rest ]
+    | {| c::bytes(1), rest::bytes |} -> split ~left:Bytestring.(left ^ c) rest
+    | {| _ |} -> []
+
+  let rec read_body ~prefix ~headers ~body_remaining reader =
+    match Http.Header.get_transfer_encoding headers with
+    | Http.Transfer.Chunked -> (
+        debug (fun f -> f "reading chunked body");
+        match read_chunked_body ~buffer:prefix reader with
+        | Ok (body, buffer) when Bytestring.is_empty buffer ->
+            debug (fun f -> f "read chunked_body: ok");
+            `Ok (if Bytestring.is_empty body then [] else [ body ])
+        | Ok (body, buffer) ->
+            debug (fun f -> f "read chunked_body: more");
+            `More ([ body ], buffer, body_remaining)
+        | Error reason -> `Error reason)
+    | _ -> (
+        debug (fun f -> f "reading content-length body");
+        match read_content_length_body reader prefix body_remaining with
+        | Ok (body, buffer, body_remaining) ->
+            debug (fun f ->
+                f "read content_length body: body_remaning=%d buffer=%d"
+                  body_remaining (Bytestring.length buffer));
+            if body_remaining = 0 && Bytestring.length buffer = 0 then (
+              debug (fun f -> f "read content_length body: ok");
+              `Ok [ body ])
+            else (
+              debug (fun f -> f "read content_length body: more");
+              `More ([ body ], buffer, body_remaining))
+        | Error reason -> `Error reason)
+
+  and read_chunked_body ~buffer reader =
+    debug (fun f -> f "buffer %S" (Bytestring.to_string buffer));
+    match split buffer with
+    | [ zero; _ ] when String.equal (Bytestring.to_string zero) "0" ->
+        debug (fun f -> f "read_chunked_body: last chunk!");
+        Ok (Bytestring.empty, Bytestring.empty)
+    | [ chunk_size; chunk_data ] -> (
+        debug (fun f ->
+            f "[%S;%S]"
+              (Bytestring.to_string chunk_size)
+              (Bytestring.to_string chunk_data));
+        let chunk_size =
+          Int64.(of_string ("0x" ^ Bytestring.to_string chunk_size) |> to_int)
+        in
+        debug (fun f -> f "read_chunked_body: chunk_size=%d" chunk_size);
+        let binstr_data = Bytestring.to_string chunk_data in
+        debug (fun f ->
+            f "read_chunked_body: (%d bytes)" (String.length binstr_data));
+        let binstr_data = binstr_data |> Bitstring.bitstring_of_string in
+        match%bitstring binstr_data with
+        | {| full_chunk : (chunk_size * 8) : string ;
+             "\r\n" : 2 * 8 : string ;
+             rest : -1 : bitstring |}
+          ->
+            debug (fun f -> f "read_chunked_body: read full chunk");
+            debug (fun f ->
+                f "read_chunked_body: rest=%d" (Bitstring.bitstring_length rest));
+            let rest =
+              Bytestring.of_string (Bitstring.string_of_bitstring rest)
+            in
+            let full_chunk = Bytestring.of_string full_chunk in
+            Ok (full_chunk, rest)
+        | {| _ |} ->
+            let left_to_read = chunk_size - Bytestring.length chunk_data + 2 in
+            debug (fun f ->
+                f "read_chunked_body: reading more data left_to_read=%d"
+                  left_to_read);
+            let* chunk = read ~to_read:left_to_read reader in
+            let buffer = Bytestring.join buffer chunk in
+            read_chunked_body ~buffer reader)
+    | _ ->
+        debug (fun f -> f "read_chunked_body: need more data");
+        let* chunk = Bytestring.with_bytes (fun buf -> IO.read ~buf reader) in
+        let buffer = Bytestring.join buffer chunk in
+        read_chunked_body ~buffer reader
+
+  and read_content_length_body reader buffer body_remaining =
+    let limit = body_remaining in
+    let to_read = limit - Bytestring.length buffer in
+    debug (fun f ->
+        f "read_content_length_body: up to limit=%d with preread_buffer=%d"
+          limit (Bytestring.length buffer));
+    match body_remaining with
+    | n when n < 0 || to_read < 0 ->
+        debug (fun f -> f "read_content_length_body: excess body");
+        Error `Excess_body_read
+    | 0 when Bytestring.length buffer >= limit ->
+        debug (fun f -> f "read_content_length_body: can answer with buffer");
+        let len = Int.min limit (Bytestring.length buffer) in
+        let body = Bytestring.sub ~off:0 ~len buffer in
+        Ok (body, Bytestring.empty, 0)
+    | remaining_bytes ->
+        let to_read =
+          Int.min (limit - Bytestring.length buffer) remaining_bytes
+        in
+        debug (fun f -> f "read_content_length_body: need to read %d" to_read);
+        let* chunk = read ~to_read reader in
+        let body = Bytestring.join buffer chunk in
+        let body_remaining = remaining_bytes - Bytestring.length body in
+        Ok (body, Bytestring.empty, body_remaining)
+
+  and read ~to_read ?(buffer = Bytestring.empty) reader =
+    if to_read = 0 then Ok buffer
+    else
+      let buf = Bytes.create to_read in
+      debug (fun f -> f "reading to_read=%d" to_read);
+      let* len = IO.read ~buf reader in
+      let chunk =
+        Bytestring.of_string (Bytes.unsafe_to_string (Bytes.sub buf 0 len))
+      in
+      let remaining_bytes = to_read - Bytestring.length chunk in
+      let buffer = Bytestring.join buffer chunk in
+      debug (fun f -> f "read: remaining_bytes %d" remaining_bytes);
+      debug (fun f -> f "read: buffer=%d" (Bytestring.length buffer));
+      if remaining_bytes > 0 then read ~to_read:remaining_bytes ~buffer reader
+      else Ok buffer
+
+  let read_header reader =
     Logger.trace (fun f -> f " Http1.Response.of_reader");
     let state = Angstrom.Buffered.parse Httpaf.Httpaf_private.Parse.response in
     let rec read state =
@@ -49,50 +173,24 @@ module Response = struct
           let state = continue (`String (Bytestring.to_string data)) in
           read state
       | Angstrom.Buffered.Done (prefix, res) ->
-          let content_length =
-            "content-length"
-            |> Httpaf.Headers.get Httpaf.Response.(res.headers)
-            |> Option.map int_of_string
-          in
-
           let prefix =
             let cs =
               Cstruct.of_bigarray ~off:prefix.off ~len:prefix.len prefix.buf
             in
             Bytestring.of_string (Cstruct.to_string cs)
           in
-          let _need_to_read =
-            content_length
-            |> Option.map (fun cl -> cl - Bytestring.length prefix)
-            |> Option.value ~default:(1024 * 10)
+
+          let status =
+            Httpaf.Response.(res.status)
+            |> Httpaf.Status.to_code |> Http.Status.of_int
           in
 
-          let str = ref prefix in
-          let rec read_body () =
-            let* data =
-              Bytestring.with_bytes (fun buf -> IO.read ~buf reader)
-            in
-            (str := Bytestring.(!str ^ data));
-            Logger.debug (fun f ->
-                f "read bytes: %S" (Bytestring.to_string data));
-            if
-              Bytestring.length data = 0
-              || String.ends_with ~suffix:"\n\n\r\n0\r\n\r\n"
-                   (Bytestring.to_string data)
-            then Ok ()
-            else read_body ()
+          let headers =
+            Httpaf.Response.(res.headers)
+            |> Httpaf.Headers.to_list |> Http.Header.of_list
           in
-          let* () = read_body () in
-          let parts =
-            [
-              `Status (res.status |> Httpaf.Status.to_code |> Http.Status.of_int);
-              `Headers
-                (res.headers |> Httpaf.Headers.to_list |> Http.Header.of_list);
-              `Data !str;
-              `Done;
-            ]
-          in
-          Ok parts
+
+          Ok (status, headers, prefix)
       | Angstrom.Buffered.Fail _ -> Error `Response_parsing_error
     in
     read state

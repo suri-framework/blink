@@ -5,5 +5,6 @@ module Request = struct
 end
 
 module Response = struct
-  let of_reader _reader = Ok []
+  let read_header _reader = Ok (`OK, Http.Header.of_list [], Bytestring.empty)
+  let read_body ~prefix:_ ~headers:_ ~body_remaining:_ _reader = `Ok []
 end

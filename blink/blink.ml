@@ -2,10 +2,12 @@ open Riot
 module Connection = Connection
 module Protocol = Protocol
 module Transport = Transport
+module WebSocket = Websocket
 
-let ( let* ) = Result.bind
+let pp_messages = Msg.pp_messages
 
 let connect uri =
+  let ( let* ) = Result.bind in
   let* addr = Net.Addr.of_uri uri in
   let (module Transport) = Transport.Negotiator.of_uri uri in
   let* conn = Transport.connect addr uri in

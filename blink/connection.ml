@@ -1,8 +1,17 @@
 open Riot
 
+open Logger.Make (struct
+  let namespace = [ "blink"; "connection" ]
+end)
+
 let ( let* ) = Result.bind
 
 type message = Msg.message
+
+type state =
+  | Done
+  | Unread
+  | More of { body_remaining : int; prefix : Bytestring.t }
 
 type t =
   | Conn : {
@@ -11,11 +20,24 @@ type t =
       reader : 'socket IO.Reader.t;
       uri : Uri.t;
       addr : Net.Addr.stream_addr;
+      headers : Http.Header.t;
+      status : Http.Status.t;
+      state : state;
     }
       -> t
 
 let make ~reader ~writer ~uri ~addr =
-  Conn { writer; reader; uri; addr; protocol = (module Protocol.Http1) }
+  Conn
+    {
+      writer;
+      reader;
+      uri;
+      addr;
+      protocol = (module Protocol.Http1);
+      status = `OK;
+      headers = Http.Header.of_list [];
+      state = Unread;
+    }
 
 let upgrade (Conn conn) = Ok (Conn conn)
 
@@ -30,5 +52,57 @@ let request (Conn conn) req ?body () =
 
 let stream (Conn conn) =
   let (module Protocol : Protocol.Intf) = conn.protocol in
-  let* parts = Protocol.Response.of_reader conn.reader in
-  Ok (Conn conn, parts)
+  match conn.state with
+  | Unread ->
+      let* status, headers, prefix =
+        Protocol.Response.read_header conn.reader
+      in
+      let body_remaining =
+        let content_length =
+          Http.Header.get_content_range headers
+          |> Option.value ~default:0L |> Int64.to_int
+        in
+        debug (fun f ->
+            f "just read prefix=%d out of %d" (Bytestring.length prefix)
+              content_length);
+        if content_length > 0 then content_length - Bytestring.length prefix
+        else 0
+      in
+
+      let parts = [ `Status status; `Headers headers ] in
+
+      Ok
+        ( Conn
+            {
+              conn with
+              status;
+              headers;
+              state = More { prefix; body_remaining };
+            },
+          parts )
+  | More { body_remaining; prefix } -> (
+      debug (fun f ->
+          f "streaming more body_remaining=%d prefix=%a" body_remaining
+            Bytestring.pp prefix);
+      match
+        Protocol.Response.read_body ~prefix ~headers:conn.headers
+          ~body_remaining conn.reader
+      with
+      | `Error reason -> Error reason
+      | `Ok [] -> Ok (Conn { conn with state = Done }, [ `Done ])
+      | `Ok parts ->
+          let parts = List.map (fun p -> `Data p) parts in
+          Ok (Conn { conn with state = Done }, parts)
+      | `More (parts, prefix, body_remaining) ->
+          let parts = List.map (fun p -> `Data p) parts in
+          Ok (Conn { conn with state = More { body_remaining; prefix } }, parts)
+      )
+  | Done -> Ok (Conn conn, [ `Done ])
+
+let messages conn =
+  let rec consume_stream conn messages =
+    let* conn, msgs = stream conn in
+    if List.length msgs = 0 then Ok (List.rev messages)
+    else consume_stream conn (msgs @ messages)
+  in
+  consume_stream conn []

@@ -7,12 +7,32 @@ module type Intf = sig
   end
 
   module Response : sig
-    val of_reader :
+    val read_header :
       'src IO.Reader.t ->
-      ( Msg.message list,
+      ( Http.Status.t * Http.Header.t * Bytestring.t,
         [> `Closed | `Eof | `Response_parsing_error | `Unix_error of Unix.error ]
       )
       IO.io_result
+
+    val read_body :
+      prefix:Bytestring.t ->
+      headers:Http.Header.t ->
+      body_remaining:int ->
+      'a IO.Reader.t ->
+      [> `Error of
+         [> `Closed
+         | `Connection_closed
+         | `Eof
+         | `Excess_body_read
+         | `Exn of exn
+         | `No_info
+         | `Noop
+         | `Process_down
+         | `Timeout
+         | `Unix_error of Unix.error
+         | `Would_block ]
+      | `More of Bytestring.t list * Bytestring.t * int
+      | `Ok of Bytestring.t list ]
   end
 end
 

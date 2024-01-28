@@ -1,8 +1,11 @@
 (library
  (public_name blink)
  (name blink)
+ (preprocess
+  (pps bytestring.ppx ppx_bitstring))
  (libraries
   riot
+  trail
   http
   httpaf
   uri

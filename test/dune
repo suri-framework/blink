@@ -1,3 +1,9 @@
 (test
  (name get_ocaml_org_test)
+ (modules get_ocaml_org_test)
+ (libraries blink))
+
+(test
+ (name blink_stream_test)
+ (modules blink_stream_test)
  (libraries blink))

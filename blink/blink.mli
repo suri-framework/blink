@@ -17,7 +17,7 @@ module Connection : sig
     | `Status of Http.Status.t ]
 end
 
-val ( let* ) : ('a, 'b) result -> ('a -> ('c, 'b) result) -> ('c, 'b) result
+val pp_messages : Format.formatter -> Connection.message list -> unit
 
 val connect :
   Uri.t ->
@@ -39,6 +39,19 @@ val request :
 val stream :
   Connection.t ->
   ( Connection.t * Connection.message list,
-    [> `Closed | `Eof | `Response_parsing_error | `Unix_error of Unix.error ]
-  )
+    [> `Closed
+    | `Eof
+    | `Response_parsing_error
+    | `Excess_body_read
+    | `Unix_error of Unix.error ] )
   IO.io_result
+
+module WebSocket : sig
+  open Trail
+
+  type t
+
+  val upgrade : Connection.t -> (t, [> `Msg of string ]) IO.io_result
+  val send : Frame.t -> t -> (t, [> `Msg of string ]) IO.io_result
+  val receive : t -> (t * Frame.t list, [> `Msg of string ]) IO.io_result
+end
