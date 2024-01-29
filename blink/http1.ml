@@ -27,7 +27,7 @@ module Request = struct
       headers |> Http.Header.to_list |> Httpaf.Headers.of_list
       |> add_header "content-length" content_length
       |> add_header "host" (Uri.host uri)
-      |> add_header "user-agent" (Some "OCaml/Blink")
+      |> add_header "user-agent" (Some "OCaml/5.1 Riot/0.0.8 Blink/0.0.1")
       |> add_header "connection" (Some "close")
     in
     let meth = meth |> Http.Method.to_string |> Httpaf.Method.of_string in

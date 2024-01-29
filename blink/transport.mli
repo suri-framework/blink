@@ -1,6 +1,8 @@
 open Riot
 
 module type Intf = sig
+  val name : string
+
   val connect :
     Net.Addr.stream_addr ->
     Uri.t ->

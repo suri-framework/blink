@@ -39,7 +39,18 @@ let make ~reader ~writer ~uri ~addr =
       state = Unread;
     }
 
-let upgrade (Conn conn) = Ok (Conn conn)
+let send (Conn { writer; _ } as conn) data =
+  error (fun f ->
+      let bufs = Bytestring.to_iovec data in
+      f "sending %d octets (iovec)" (IO.Iovec.length bufs));
+  let buf = Bytestring.to_string data |> Bytes.unsafe_of_string in
+  error (fun f -> f "sending %d bytes" (Bytes.length buf));
+  let* () = IO.write_all writer ~buf in
+  Ok conn
+
+let receive (Conn { reader; _ } as conn) =
+  let* data = Bytestring.with_bytes (fun buf -> IO.read ~buf reader) in
+  Ok (conn, data)
 
 let request (Conn conn) req ?body () =
   let (module Protocol : Protocol.Intf) = conn.protocol in
@@ -102,7 +113,8 @@ let stream (Conn conn) =
 let messages conn =
   let rec consume_stream conn messages =
     let* conn, msgs = stream conn in
-    if List.length msgs = 0 then Ok (List.rev messages)
-    else consume_stream conn (msgs @ messages)
+    match msgs with
+    | [ `Done ] -> Ok (List.rev messages)
+    | _ -> consume_stream conn (msgs @ messages)
   in
   consume_stream conn []

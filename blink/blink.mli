@@ -51,7 +51,27 @@ module WebSocket : sig
 
   type t
 
-  val upgrade : Connection.t -> (t, [> `Msg of string ]) IO.io_result
-  val send : Frame.t -> t -> (t, [> `Msg of string ]) IO.io_result
-  val receive : t -> (t * Frame.t list, [> `Msg of string ]) IO.io_result
+  val upgrade :
+    Connection.t ->
+    string ->
+    ( t,
+      [> `Closed
+      | `Eof
+      | `Response_parsing_error
+      | `Excess_body_read
+      | `Unknown_opcode of int
+      | `Msg of string
+      | `Unix_error of Unix.error ] )
+    IO.io_result
+
+  val send :
+    Frame.t list ->
+    t ->
+    (t, [> `Msg of string | `Unknown_opcode of int ]) IO.io_result
+
+  val receive :
+    t ->
+    ( t * Frame.t list,
+      [> `Msg of string | `Unknown_opcode of int ] )
+    IO.io_result
 end

@@ -3,6 +3,8 @@ open Riot
 let ( let* ) = Result.bind
 
 module type Intf = sig
+  val name : string
+
   val connect :
     Net.Addr.stream_addr ->
     Uri.t ->
@@ -15,6 +17,8 @@ module type Intf = sig
 end
 
 module Tcp : Intf = struct
+  let name = "tcp"
+
   let connect addr uri =
     let* sock = Net.Tcp_stream.connect addr in
     let reader, writer = Net.Tcp_stream.(to_reader sock, to_writer sock) in
@@ -23,6 +27,8 @@ module Tcp : Intf = struct
 end
 
 module Ssl : Intf = struct
+  let name = "tls"
+
   module Auth = struct
     let () =
       Mirage_crypto_rng_unix.initialize (module Mirage_crypto_rng.Fortuna)
