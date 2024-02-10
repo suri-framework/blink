@@ -43,22 +43,18 @@ let send (Conn { writer; _ } as conn) data =
   error (fun f ->
       let bufs = Bytestring.to_iovec data in
       f "sending %d octets (iovec)" (IO.Iovec.length bufs));
-  let buf = Bytestring.to_string data |> Bytes.unsafe_of_string in
-  error (fun f -> f "sending %d bytes" (Bytes.length buf));
+  let buf = Bytestring.to_string data in
   let* () = IO.write_all writer ~buf in
   Ok conn
 
 let receive (Conn { reader; _ } as conn) =
-  let* data = Bytestring.with_bytes (fun buf -> IO.read ~buf reader) in
+  let* data = Bytestring.with_bytes (fun buf -> IO.read reader buf) in
   Ok (conn, data)
 
 let request (Conn conn) req ?body () =
   let (module Protocol : Protocol.Intf) = conn.protocol in
   let buf = Protocol.Request.to_buffer conn.uri req ?body () in
-  let* () =
-    IO.write_all conn.writer
-      ~buf:(Bytes.unsafe_of_string (Bytestring.to_string buf))
-  in
+  let* () = IO.write_all conn.writer ~buf:(Bytestring.to_string buf) in
   Ok (Conn conn)
 
 let stream (Conn conn) =

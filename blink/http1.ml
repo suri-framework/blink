@@ -118,7 +118,7 @@ module Response = struct
             read_chunked_body ~buffer reader)
     | _ ->
         debug (fun f -> f "read_chunked_body: need more data");
-        let* chunk = Bytestring.with_bytes (fun buf -> IO.read ~buf reader) in
+        let* chunk = Bytestring.with_bytes (fun buf -> IO.read reader buf) in
         let buffer = Bytestring.join buffer chunk in
         read_chunked_body ~buffer reader
 
@@ -129,14 +129,14 @@ module Response = struct
         f "read_content_length_body: up to limit=%d with preread_buffer=%d"
           limit (Bytestring.length buffer));
     match body_remaining with
-    | n when n < 0 || to_read < 0 ->
-        debug (fun f -> f "read_content_length_body: excess body");
-        Error `Excess_body_read
     | 0 when Bytestring.length buffer >= limit ->
         debug (fun f -> f "read_content_length_body: can answer with buffer");
         let len = Int.min limit (Bytestring.length buffer) in
         let body = Bytestring.sub ~off:0 ~len buffer in
         Ok (body, Bytestring.empty, 0)
+    | n when n < 0 || to_read < 0 ->
+        debug (fun f -> f "read_content_length_body: excess body");
+        Error `Excess_body_read
     | remaining_bytes ->
         let to_read =
           Int.min (limit - Bytestring.length buffer) remaining_bytes
@@ -152,7 +152,7 @@ module Response = struct
     else
       let buf = Bytes.create to_read in
       debug (fun f -> f "reading to_read=%d" to_read);
-      let* len = IO.read ~buf reader in
+      let* len = IO.read reader buf in
       let chunk =
         Bytestring.of_string (Bytes.unsafe_to_string (Bytes.sub buf 0 len))
       in
@@ -169,7 +169,7 @@ module Response = struct
     let rec read state =
       match state with
       | Angstrom.Buffered.Partial continue ->
-          let* data = Bytestring.with_bytes (fun buf -> IO.read ~buf reader) in
+          let* data = Bytestring.with_bytes (fun buf -> IO.read reader buf) in
           let state = continue (`String (Bytestring.to_string data)) in
           read state
       | Angstrom.Buffered.Done (prefix, res) ->
