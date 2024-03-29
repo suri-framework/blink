@@ -19,10 +19,12 @@
  (synopsis "A short synopsis")
  (description "A longer description")
  (depends 
-   (trail (>= "0.0.1"))
    (angstrom (>= "0.15.0"))
    (castore (>= "0.0.2"))
-   (httpaf (>= "5.3.1"))
+   digestif
+   bitstring
+   httpaf 
+   ppx_bitstring
    (faraday (>= "0.8.2"))
    (http (>= "6.0.0~alpha2"))
    (mdx (and :with-test (>= "2.3.1")))

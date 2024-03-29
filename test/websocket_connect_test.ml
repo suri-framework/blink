@@ -35,12 +35,12 @@ let* conn = Blink.connect url in
 let* sock = Blink.WebSocket.upgrade conn "/ws" in
 (* $MDX part-end *)
 (* $MDX part-begin=stream *)
-let hello_world = Trail.Frame.text "hello world" in
+let hello_world = Blink.Frame.text "hello world" in
 
-Logger.info (fun f -> f "hello_world: %a" Trail.Frame.pp hello_world);
+Logger.info (fun f -> f "hello_world: %a" Blink.Frame.pp hello_world);
 
 let* sock = Blink.WebSocket.send [ hello_world ] sock in
 let* _sock, [ frame ] = Blink.WebSocket.receive sock in
-Logger.info (fun f -> f "got frame: %a" Trail.Frame.pp frame);
+Logger.info (fun f -> f "got frame: %a" Blink.Frame.pp frame);
 (* $MDX part-end *)
 Ok ()

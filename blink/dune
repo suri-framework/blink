@@ -5,12 +5,11 @@
   (pps bytestring.ppx ppx_bitstring))
  (libraries
   riot
-  trail
   http
+  bitstring
   httpaf
   uri
   castore
-  cohttp
   digestif
   faraday
   angstrom

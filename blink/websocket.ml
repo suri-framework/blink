@@ -53,11 +53,10 @@ let upgrade conn path =
 
 let send frames t =
   List.iter
-    (fun frame -> error (fun f -> f "sending frames: %a" Trail.Frame.pp frame))
+    (fun frame -> error (fun f -> f "sending frames: %a" Frame.pp frame))
     frames;
   let data =
-    Bytestring.concat Bytestring.empty
-      (List.map Trail.Frame.Request.serialize frames)
+    Bytestring.concat Bytestring.empty (List.map Frame.Request.serialize frames)
   in
   let* conn = Connection.send t.conn data in
   Ok { t with conn }
@@ -71,7 +70,7 @@ let receive { conn; buffer } =
 
   debug (fun f -> f "unfolding frames from: %S" (Bytestring.to_string data));
   let* frames, buffer =
-    Stream.unfold Trail.Frame.Response.deserialize (Bytestring.to_string data)
+    Stream.unfold Frame.Response.deserialize (Bytestring.to_string data)
     |> Stream.reduce_while (Ok ([], Bytestring.empty)) @@ fun frame state ->
        match (frame, state) with
        | `ok frame, Ok (acc, buff) -> `continue (Ok (frame :: acc, buff))

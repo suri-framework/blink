@@ -3,6 +3,7 @@
 *)
 
 open Riot
+module Frame = Frame
 
 (** {2 Connection}
 
@@ -47,8 +48,6 @@ val stream :
   IO.io_result
 
 module WebSocket : sig
-  open Trail
-
   type t
 
   val upgrade :
