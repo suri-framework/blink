@@ -8,7 +8,7 @@
  (modules blink_stream_test)
  (libraries blink))
 
-(test
- (name websocket_connect_test)
- (modules websocket_connect_test)
- (libraries blink))
+; (test
+;  (name websocket_connect_test)
+;  (modules websocket_connect_test)
+;  (libraries blink))

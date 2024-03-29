@@ -11,8 +11,8 @@ bug-reports: "https://github.com/leostera/blink/issues"
 depends: [
   "angstrom" {>= "0.15.0"}
   "castore" {>= "0.0.2"}
-  "bitstring"
   "digestif"
+  "bitstring"
   "httpaf"
   "ppx_bitstring"
   "faraday" {>= "0.8.2"}
