@@ -8,6 +8,7 @@ module Connection = Connection
 module Protocol = Protocol
 module Transport = Transport
 module WebSocket = Websocket
+module Frame = Frame
 
 let pp_messages = Msg.pp_messages
 
