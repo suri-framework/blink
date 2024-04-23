@@ -1,9 +1,8 @@
-# Changes
-
-## 0.0.1
+# 0.0.2
 
 First release of Blink, including:
 
-* Create and reuse connectionsc
+* Creating and reusing connections objects
 * Stream requests into connection messages
 * Support for clear TCP and SSL transports
+* Support for WebSockets – thanks to @tj_devries :sparkles:
