@@ -14,13 +14,13 @@ let pp_messages = Msg.pp_messages
 
 let connect uri =
   let ( let* ) = Result.bind in
-  error (fun f -> f "resolving %a" Uri.pp uri);
+  trace (fun f -> f "resolving %a" Uri.pp uri);
   let* addr = Net.Addr.of_uri uri in
-  error (fun f -> f "connecting %a" Net.Addr.pp addr);
+  trace (fun f -> f "connecting %a" Net.Addr.pp addr);
   let (module Transport) = Transport.Negotiator.of_uri uri in
-  error (fun f -> f "using transport %s" Transport.name);
+  trace (fun f -> f "using transport %s" Transport.name);
   let* conn = Transport.connect addr uri in
-  error (fun f -> f "connected");
+  trace (fun f -> f "connected");
   Ok conn
 
 let request = Connection.request

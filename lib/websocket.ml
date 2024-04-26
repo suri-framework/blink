@@ -53,7 +53,7 @@ let upgrade conn path =
 
 let send frames t =
   List.iter
-    (fun frame -> error (fun f -> f "sending frames: %a" Frame.pp frame))
+    (fun frame -> trace (fun f -> f "sending frames: %a" Frame.pp frame))
     frames;
   let data =
     Bytestring.concat Bytestring.empty (List.map Frame.Request.serialize frames)
