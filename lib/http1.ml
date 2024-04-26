@@ -131,9 +131,9 @@ module Response = struct
     match body_remaining with
     | 0 when Bytestring.length buffer >= limit ->
         debug (fun f -> f "read_content_length_body: can answer with buffer");
-        let len = Int.min limit (Bytestring.length buffer) in
-        let body = Bytestring.sub ~off:0 ~len buffer in
-        Ok (body, Bytestring.empty, 0)
+        (* let len = Int.min limit (Bytestring.length buffer) in *)
+        (* let body = Bytestring.sub ~off:0 ~len buffer in *)
+        Ok (buffer, Bytestring.empty, 0)
     | n when n < 0 || to_read < 0 ->
         debug (fun f -> f "read_content_length_body: excess body");
         Error `Excess_body_read
