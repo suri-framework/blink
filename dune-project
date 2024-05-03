@@ -25,6 +25,7 @@
    bitstring
    httpaf 
    ppx_bitstring
+   (cohttp (>= "5.3.0"))
    (faraday (>= "0.8.2"))
    (http (>= "6.0.0~alpha2"))
    (mdx (and :with-test (>= "2.3.1")))
