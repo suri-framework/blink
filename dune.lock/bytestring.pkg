@@ -1,0 +1,11 @@
+(version dev)
+
+(dune)
+
+(depends rio ocaml ppxlib sedlex spices dune)
+
+(source
+ (fetch
+  (url git+https://github.com/riot-ml/bytestring.git)))
+
+(dev)

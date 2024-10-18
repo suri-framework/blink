@@ -6,7 +6,7 @@
 (generate_opam_files true)
 
 (source
- (github leostera/blink))
+ (github suri-framework/blink))
 
 (authors "Leandro Ostera <leandro@abstractmachines.dev>")
 
@@ -37,3 +37,5 @@
    dune)
  (tags
   (http client "http client" riot multicore)))
+
+(pin (package (name riot)) (url "git+https://github.com/riot-ml/riot"))

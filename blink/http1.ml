@@ -174,10 +174,9 @@ module Response = struct
           read state
       | Angstrom.Buffered.Done (prefix, res) ->
           let prefix =
-            let cs =
-              Cstruct.of_bigarray ~off:prefix.off ~len:prefix.len prefix.buf
-            in
-            Bytestring.of_string (Cstruct.to_string cs)
+            let Angstrom.Buffered.{ buf; off; len } = prefix in
+            Bigstringaf.sub buf ~off ~len
+            |> Bigstringaf.to_string |> Bytestring.of_string
           in
 
           let status =

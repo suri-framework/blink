@@ -1,0 +1,16 @@
+(version 4.1.0)
+
+(build
+ (progn
+  (when
+   %{pkg-self:dev}
+   (run dune subst))
+  (run dune build -p %{pkg-self:name} -j %{jobs} @install)))
+
+(depends dune ocaml stdlib-shims)
+
+(source
+ (fetch
+  (url https://github.com/xguerin/bitstring/archive/v4.1.0.tar.gz)
+  (checksum
+   sha256=67f0cc4466be538abf2d1fdea8517c35de1e7df8ce5b96341964ce8aebf54298)))
