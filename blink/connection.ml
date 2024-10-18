@@ -40,7 +40,7 @@ let make ~reader ~writer ~uri ~addr =
     }
 
 let send (Conn { writer; _ } as conn) data =
-  error (fun f ->
+  trace (fun f ->
       let bufs = Bytestring.to_iovec data in
       f "sending %d octets (iovec)" (IO.Iovec.length bufs));
   let buf = Bytestring.to_string data in
