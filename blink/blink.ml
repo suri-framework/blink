@@ -25,3 +25,10 @@ let connect uri =
 
 let request = Connection.request
 let stream = Connection.stream
+let messages = Connection.messages
+
+let await conn = 
+  let (let*) = Result.bind in
+  let* conn, messages = messages conn in
+  let res, body = Msg.to_response messages in
+  Ok (conn, res, body)

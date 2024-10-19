@@ -15,11 +15,11 @@ module type Intf = sig
       IO.io_result
 
     val read_body :
-      prefix:Bytestring.t ->
+      buffer:Bytestring.t ->
       headers:Http.Header.t ->
       body_remaining:int ->
       'a IO.Reader.t ->
-      [> `Error of
+      [> `error of
          [> `Closed
          | `Connection_closed
          | `Eof
@@ -31,8 +31,8 @@ module type Intf = sig
          | `Timeout
          | `Unix_error of Unix.error
          | `Would_block ]
-      | `More of Bytestring.t list * Bytestring.t * int
-      | `Ok of Bytestring.t list ]
+      | `continue of Bytestring.t * Bytestring.t
+      | `finished of Bytestring.t ]
   end
 end
 

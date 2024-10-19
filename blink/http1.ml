@@ -49,40 +49,35 @@ module Response = struct
     | {| c::bytes(1), rest::bytes |} -> split ~left:Bytestring.(left ^ c) rest
     | {| _ |} -> []
 
-  let rec read_body ~prefix ~headers ~body_remaining reader =
+  let rec read_body ~buffer ~headers ~body_remaining reader =
     match Http.Header.get_transfer_encoding headers with
     | Http.Transfer.Chunked -> (
-        debug (fun f -> f "reading chunked body");
-        match read_chunked_body ~buffer:prefix reader with
-        | Ok (body, buffer) when Bytestring.is_empty buffer ->
-            debug (fun f ->
-                f "read chunked_body: ok (%d bytes)" (Bytestring.length body));
-            `Ok (if Bytestring.is_empty body then [] else [ body ])
-        | Ok (body, buffer) ->
-            debug (fun f -> f "read chunked_body: more");
-            `More ([ body ], buffer, body_remaining)
-        | Error reason -> `Error reason)
+        debug (fun f -> f "Reading chunked body");
+        debug (fun f -> f "-> body_remaining: %d" body_remaining);
+        match read_chunked_body ~buffer reader with
+        | Ok `no_more_chunks -> `finished Bytestring.empty
+        | Ok (`chunk (body, buffer)) -> `continue (body, buffer)
+        | Error reason -> `error reason)
     | _ -> (
         debug (fun f -> f "reading content-length body");
-        match read_content_length_body reader prefix body_remaining with
+        match read_content_length_body reader buffer body_remaining with
         | Ok (body, buffer, body_remaining) ->
             debug (fun f ->
                 f "read content_length body: body_remaning=%d buffer=%d"
                   body_remaining (Bytestring.length buffer));
             if body_remaining = 0 && Bytestring.length buffer = 0 then (
               debug (fun f -> f "read content_length body: ok");
-              `Ok [ body ])
+              `finished body)
             else (
               debug (fun f -> f "read content_length body: more");
-              `More ([ body ], buffer, body_remaining))
-        | Error reason -> `Error reason)
+              `continue (body, buffer))
+        | Error reason -> `error reason)
 
   and read_chunked_body ~buffer reader =
-    debug (fun f -> f "buffer %S" (Bytestring.to_string buffer));
     match split buffer with
     | [ zero; _ ] when String.equal (Bytestring.to_string zero) "0" ->
         debug (fun f -> f "read_chunked_body: last chunk!");
-        Ok (Bytestring.empty, Bytestring.empty)
+        Ok `no_more_chunks
     | [ chunk_size; chunk_data ] -> (
         debug (fun f ->
             f "[%S;%S]"
@@ -108,7 +103,7 @@ module Response = struct
               Bytestring.of_string (Bitstring.string_of_bitstring rest)
             in
             let full_chunk = Bytestring.of_string full_chunk in
-            Ok (full_chunk, rest)
+            Ok (`chunk (full_chunk, rest))
         | {| _ |} ->
             let left_to_read = chunk_size - Bytestring.length chunk_data + 2 in
             debug (fun f ->
