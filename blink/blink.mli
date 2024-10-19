@@ -39,12 +39,6 @@ val request :
   unit ->
   (Connection.t, [> `Closed | `Unix_error of Unix.error ]) IO.io_result
 
-(**
-   [stream conn] is a low-level API that returns a list of messages streamed
-   from the connection and a handler to the updated connection.
-
-   You can use this to process data as it comes
-*)
 val stream :
   Connection.t ->
   ( Connection.t * Connection.message list,
@@ -54,11 +48,13 @@ val stream :
     | `Excess_body_read
     | `Unix_error of Unix.error ] )
   IO.io_result
-
 (**
-   [messages conn] will stream and collect all messages coming in from a
-   connection. This is handy if you want to consume messages in batches.
+   [stream conn] is a low-level API that returns a list of messages streamed
+   from the connection and a handler to the updated connection.
+
+   You can use this to process data as it comes
 *)
+
 val messages :
   Connection.t ->
   ( Connection.t * Connection.message list,
@@ -68,7 +64,20 @@ val messages :
     | `Excess_body_read
     | `Unix_error of Unix.error ] )
   IO.io_result
+(**
+   [messages conn] will stream and collect all messages coming in from a
+   connection. This is handy if you want to consume messages in batches.
+*)
 
+val await :
+  Connection.t ->
+  ( Connection.t * Http.Response.t * Bytestring.t,
+    [> `Closed
+    | `Eof
+    | `Response_parsing_error
+    | `Excess_body_read
+    | `Unix_error of Unix.error ] )
+  IO.io_result
 (**
    [await conn] will stream the connection until it is drained, collect the
    body, and build a response object.
@@ -77,14 +86,6 @@ val messages :
 
    For stream processing of body responses see [stream conn].
 *)
-val await : Connection.t -> 
-  ( Connection.t * Http.Response.t * Bytestring.t,
-    [> `Closed
-    | `Eof
-    | `Response_parsing_error
-    | `Excess_body_read
-    | `Unix_error of Unix.error ] )
-  IO.io_result
 
 module WebSocket : sig
   type t

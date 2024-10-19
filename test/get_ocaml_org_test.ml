@@ -21,7 +21,9 @@ let* conn = Blink.request conn req () in
 (* $MDX part-begin=stream *)
 let* _conn, response, body = Blink.await conn in
 (* $MDX part-end *)
-match (response.status, Http.Header.to_list response.headers, Bytestring.length body) with
+match
+  (response.status, Http.Header.to_list response.headers, Bytestring.length body)
+with
 | `OK, _, 74428 ->
     Logger.info (fun f -> f "get_ocaml_org_test: OK");
     sleep 0.1;
