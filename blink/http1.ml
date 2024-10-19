@@ -79,10 +79,6 @@ module Response = struct
         debug (fun f -> f "read_chunked_body: last chunk!");
         Ok `no_more_chunks
     | [ chunk_size; chunk_data ] -> (
-        debug (fun f ->
-            f "[%S;%S]"
-              (Bytestring.to_string chunk_size)
-              (Bytestring.to_string chunk_data));
         let chunk_size =
           Int64.(of_string ("0x" ^ Bytestring.to_string chunk_size) |> to_int)
         in
