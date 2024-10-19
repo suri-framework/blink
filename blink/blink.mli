@@ -56,6 +56,7 @@ val stream :
 *)
 
 val messages :
+  ?on_message:(Connection.message list -> unit) ->
   Connection.t ->
   ( Connection.t * Connection.message list,
     [> `Closed
@@ -67,9 +68,13 @@ val messages :
 (**
    [messages conn] will stream and collect all messages coming in from a
    connection. This is handy if you want to consume messages in batches.
+
+   The [on_message] hook can be used to tap into the collection and report
+   progress.
 *)
 
 val await :
+  ?on_message:(Connection.message list -> unit) ->
   Connection.t ->
   ( Connection.t * Http.Response.t * Bytestring.t,
     [> `Closed
@@ -85,6 +90,9 @@ val await :
    Useful for one-off request/response cycles.
 
    For stream processing of body responses see [stream conn].
+
+   The [on_message] hook can be used to tap into the collection and report
+   progress.
 *)
 
 module WebSocket : sig

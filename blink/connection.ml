@@ -167,12 +167,14 @@ let stream (Conn ({ headers; reader; state; protocol; _ } as conn)) =
             ( Conn { conn with state = More { body_remaining; body_prefix } },
               [ `Data body ] ))
 
-let messages conn =
+let messages ?(on_message = fun _ -> ()) conn =
   let rec consume_stream conn messages =
     let* conn, msgs = stream conn in
+    on_message msgs;
     match msgs with
     | [] | [ `Done ] | `Done :: _ -> Ok (conn, List.rev msgs @ messages)
-    | _ -> consume_stream conn (List.rev msgs @ messages)
+    | _ -> 
+        consume_stream conn (List.rev msgs @ messages)
   in
   let* conn, messages = consume_stream conn [] in
   let messages = List.rev messages in
