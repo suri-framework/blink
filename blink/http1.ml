@@ -55,7 +55,8 @@ module Response = struct
         debug (fun f -> f "reading chunked body");
         match read_chunked_body ~buffer:prefix reader with
         | Ok (body, buffer) when Bytestring.is_empty buffer ->
-            debug (fun f -> f "read chunked_body: ok");
+            debug (fun f ->
+                f "read chunked_body: ok (%d bytes)" (Bytestring.length body));
             `Ok (if Bytestring.is_empty body then [] else [ body ])
         | Ok (body, buffer) ->
             debug (fun f -> f "read chunked_body: more");
