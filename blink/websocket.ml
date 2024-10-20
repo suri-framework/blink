@@ -43,7 +43,7 @@ let upgrade conn path =
     Http.Request.make ~headers ~meth:`GET path
   in
   let* conn = Connection.request conn req () in
-  let* messages = Connection.messages conn in
+  let* conn, messages = Connection.messages conn in
 
   match messages with
   | [ `Headers headers; `Status `Switching_protocols; `Data _ ] ->

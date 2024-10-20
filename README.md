@@ -31,11 +31,20 @@ let* conn = Blink.request conn req () in
 Finally, once we have made a request, we can call `Blink.stream` to
 stream-parse the results and receive the parts as they come:
 
-<!-- $MDX file=./test/get_ocaml_org_test.ml,part=stream -->
 ```ocaml
-let* conn, [ `Status status; `Headers headers ] = Blink.stream conn in
-let* conn, [ `Data body ] = Blink.stream conn in
-let* _conn, [ `Done ] = Blink.stream conn in
+let rec run conn =
+  let* conn, msgs = Blink.stream conn in
+  match msgs with
+  | [ `Done ] -> ()
+  | msgs -> handle_messages msgs; run conn
+in
+let* () = run conn in
+(* ... *)
 ```
 
-When you receive a `` `Done `` message you'd have reached the end of the stream.
+Or if we prefer to consume all messages and pull together a response, we can do so with `Blink.await`:
+
+<!-- $MDX file=./test/get_ocaml_org_test.ml,part=stream -->
+```ocaml
+let* _conn, response, body = Blink.await conn in
+```
