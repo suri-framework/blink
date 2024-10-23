@@ -173,8 +173,7 @@ let messages ?(on_message = fun _ -> ()) conn =
     on_message msgs;
     match msgs with
     | [] | [ `Done ] | `Done :: _ -> Ok (conn, List.rev msgs @ messages)
-    | _ -> 
-        consume_stream conn (List.rev msgs @ messages)
+    | _ -> consume_stream conn (List.rev msgs @ messages)
   in
   let* conn, messages = consume_stream conn [] in
   let messages = List.rev messages in
