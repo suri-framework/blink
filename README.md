@@ -31,15 +31,14 @@ let* conn = Blink.request conn req () in
 Finally, once we have made a request, we can call `Blink.stream` to
 stream-parse the results and receive the parts as they come:
 
-```ocaml
+```ocaml,norun
 let rec run conn =
   let* conn, msgs = Blink.stream conn in
   match msgs with
   | [ `Done ] -> ()
   | msgs -> handle_messages msgs; run conn
 in
-let* () = run conn in
-(* ... *)
+run conn
 ```
 
 Or if we prefer to consume all messages and pull together a response, we can do so with `Blink.await`:
