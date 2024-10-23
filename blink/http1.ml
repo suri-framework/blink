@@ -52,39 +52,39 @@ module Response = struct
   let rec read_body ~buffer ~headers ~body_remaining reader =
     match Http.Header.get_transfer_encoding headers with
     | Http.Transfer.Chunked -> (
-        debug (fun f -> f "Reading chunked body");
-        debug (fun f -> f "-> body_remaining: %d" body_remaining);
+        trace (fun f -> f "Reading chunked body");
+        trace (fun f -> f "-> body_remaining: %d" body_remaining);
         match read_chunked_body ~buffer reader with
         | Ok `no_more_chunks -> `finished Bytestring.empty
         | Ok (`chunk (body, buffer)) -> `continue (body, buffer)
         | Error reason -> `error reason)
     | _ -> (
-        debug (fun f -> f "reading content-length body");
+        trace (fun f -> f "reading content-length body");
         match read_content_length_body reader buffer body_remaining with
         | Ok (body, buffer, body_remaining) ->
-            debug (fun f ->
+            trace (fun f ->
                 f "read content_length body: body_remaning=%d buffer=%d"
                   body_remaining (Bytestring.length buffer));
             if body_remaining = 0 && Bytestring.length buffer = 0 then (
-              debug (fun f -> f "read content_length body: ok");
+              trace (fun f -> f "read content_length body: ok");
               `finished body)
             else (
-              debug (fun f -> f "read content_length body: more");
+              trace (fun f -> f "read content_length body: more");
               `continue (body, buffer))
         | Error reason -> `error reason)
 
   and read_chunked_body ~buffer reader =
     match split buffer with
     | [ zero; _ ] when String.equal (Bytestring.to_string zero) "0" ->
-        debug (fun f -> f "read_chunked_body: last chunk!");
+        trace (fun f -> f "read_chunked_body: last chunk!");
         Ok `no_more_chunks
     | [ chunk_size; chunk_data ] -> (
         let chunk_size =
           Int64.(of_string ("0x" ^ Bytestring.to_string chunk_size) |> to_int)
         in
-        debug (fun f -> f "read_chunked_body: chunk_size=%d" chunk_size);
+        trace (fun f -> f "read_chunked_body: chunk_size=%d" chunk_size);
         let binstr_data = Bytestring.to_string chunk_data in
-        debug (fun f ->
+        trace (fun f ->
             f "read_chunked_body: (%d bytes)" (String.length binstr_data));
         let binstr_data = binstr_data |> Bitstring.bitstring_of_string in
         match%bitstring binstr_data with
@@ -92,8 +92,8 @@ module Response = struct
              "\r\n" : 2 * 8 : string ;
              rest : -1 : bitstring |}
           ->
-            debug (fun f -> f "read_chunked_body: read full chunk");
-            debug (fun f ->
+            trace (fun f -> f "read_chunked_body: read full chunk");
+            trace (fun f ->
                 f "read_chunked_body: rest=%d" (Bitstring.bitstring_length rest));
             let rest =
               Bytestring.of_string (Bitstring.string_of_bitstring rest)
@@ -102,14 +102,14 @@ module Response = struct
             Ok (`chunk (full_chunk, rest))
         | {| _ |} ->
             let left_to_read = chunk_size - Bytestring.length chunk_data + 2 in
-            debug (fun f ->
+            trace (fun f ->
                 f "read_chunked_body: reading more data left_to_read=%d"
                   left_to_read);
             let* chunk = read ~to_read:left_to_read reader in
             let buffer = Bytestring.join buffer chunk in
             read_chunked_body ~buffer reader)
     | _ ->
-        debug (fun f -> f "read_chunked_body: need more data");
+        trace (fun f -> f "read_chunked_body: need more data");
         let* chunk = Bytestring.with_bytes (fun buf -> IO.read reader buf) in
         let buffer = Bytestring.join buffer chunk in
         read_chunked_body ~buffer reader
@@ -117,23 +117,23 @@ module Response = struct
   and read_content_length_body reader buffer body_remaining =
     let limit = body_remaining in
     let to_read = limit - Bytestring.length buffer in
-    debug (fun f ->
+    trace (fun f ->
         f "read_content_length_body: up to limit=%d with preread_buffer=%d"
           limit (Bytestring.length buffer));
     match body_remaining with
     | 0 when Bytestring.length buffer >= limit ->
-        debug (fun f -> f "read_content_length_body: can answer with buffer");
+        trace (fun f -> f "read_content_length_body: can answer with buffer");
         (* let len = Int.min limit (Bytestring.length buffer) in *)
         (* let body = Bytestring.sub ~off:0 ~len buffer in *)
         Ok (buffer, Bytestring.empty, 0)
     | n when n < 0 || to_read < 0 ->
-        debug (fun f -> f "read_content_length_body: excess body");
+        trace (fun f -> f "read_content_length_body: excess body");
         Error `Excess_body_read
     | remaining_bytes ->
         let to_read =
           Int.min (limit - Bytestring.length buffer) remaining_bytes
         in
-        debug (fun f -> f "read_content_length_body: need to read %d" to_read);
+        trace (fun f -> f "read_content_length_body: need to read %d" to_read);
         let* chunk = read ~to_read reader in
         let body = Bytestring.join buffer chunk in
         let body_remaining = remaining_bytes - Bytestring.length body in
@@ -143,15 +143,15 @@ module Response = struct
     if to_read = 0 then Ok buffer
     else
       let buf = Bytes.create to_read in
-      debug (fun f -> f "reading to_read=%d" to_read);
+      trace (fun f -> f "reading to_read=%d" to_read);
       let* len = IO.read reader buf in
       let chunk =
         Bytestring.of_string (Bytes.unsafe_to_string (Bytes.sub buf 0 len))
       in
       let remaining_bytes = to_read - Bytestring.length chunk in
       let buffer = Bytestring.join buffer chunk in
-      debug (fun f -> f "read: remaining_bytes %d" remaining_bytes);
-      debug (fun f -> f "read: buffer=%d" (Bytestring.length buffer));
+      trace (fun f -> f "read: remaining_bytes %d" remaining_bytes);
+      trace (fun f -> f "read: buffer=%d" (Bytestring.length buffer));
       if remaining_bytes > 0 then read ~to_read:remaining_bytes ~buffer reader
       else Ok buffer
 

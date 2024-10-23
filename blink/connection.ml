@@ -91,26 +91,26 @@ let stream (Conn ({ headers; reader; state; protocol; _ } as conn)) =
       well.
   *)
   | Unread ->
-      debug (fun f -> f "Beginning stream on unread connection...");
+      trace (fun f -> f "Beginning stream on unread connection...");
       let* status, headers, body_prefix =
         Protocol.Response.read_header reader
       in
-      debug (fun f -> f "-> status: %a" Http.Status.pp status);
-      debug (fun f ->
+      trace (fun f -> f "-> status: %a" Http.Status.pp status);
+      trace (fun f ->
           f "-> body prefix size: %d" (Bytestring.length body_prefix));
       let content_length =
         match Http.Header.get_content_range headers with
         | None -> `unknown
         | Some size -> `fixed (Int64.to_int size)
       in
-      debug (fun f ->
+      trace (fun f ->
           f "-> expected content length: %a" pp_measure content_length);
       let body_remaining =
         match content_length with
         | `unknown | `fixed 0 -> content_length
         | `fixed size -> `fixed (size - Bytestring.length body_prefix)
       in
-      debug (fun f -> f "-> remaining body: %a" pp_measure body_remaining);
+      trace (fun f -> f "-> remaining body: %a" pp_measure body_remaining);
 
       let messages = [ `Status status; `Headers headers ] in
 
@@ -140,8 +140,8 @@ let stream (Conn ({ headers; reader; state; protocol; _ } as conn)) =
   | More { body_remaining = `fixed 0; _ } ->
       Ok (Conn { conn with state = Done }, [ `Done ])
   | More { body_remaining; body_prefix } -> (
-      debug (fun f -> f "Continuing stream on connection...");
-      debug (fun f -> f "-> body_remaining: %a" pp_measure body_remaining);
+      trace (fun f -> f "Continuing stream on connection...");
+      trace (fun f -> f "-> body_remaining: %a" pp_measure body_remaining);
       match
         let body_remaining = measure_to_int body_remaining in
         Protocol.Response.read_body ~buffer:body_prefix ~headers ~body_remaining
@@ -178,7 +178,7 @@ let messages ?(on_message = fun _ -> ()) conn =
   in
   let* conn, messages = consume_stream conn [] in
   let messages = List.rev messages in
-  debug (fun f ->
+  trace (fun f ->
       f "collected %d messages:\n%a" (List.length messages) Msg.pp_messages
         messages);
   Ok (conn, messages)
